@@ -33,7 +33,10 @@ public:
         if (freeList == nullptr) {
             return nullptr;
         }
-        static_assert(sizeof(T) <= blockSize - sizeof(MemoryBlock), "Type T is too large for the memory block size");
+        
+        if (sizeof(T) > blockSize - sizeof(MemoryBlock)) {
+            throw std::bad_alloc();
+        }
 
         // Find the next free block
         MemoryBlock* block = freeList;
@@ -71,12 +74,19 @@ private:
     T* ptr;
     MemoryPool* owner;
 public:
+    // Constructor and Destructor
     PoolPointer(T* p, MemoryPool* pool) : ptr(p), owner(pool) {}
     ~PoolPointer() { owner->deallocate(ptr); }
+
+    // Basic pointer operations
+    T* operator->() { return ptr; }
+    T& operator*() { return *ptr; }
 
     // Disable copying to prevent double free errors
     PoolPointer(const PoolPointer&) = delete;
     PoolPointer& operator=(const PoolPointer&) = delete;
+
+    
 };
 
 #endif //MEMORYPOOLALLOCATOR_MEMORY_POOL_HPP
