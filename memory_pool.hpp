@@ -23,11 +23,39 @@ public:
 
     ~MemoryPool();
 
-    template<typename T>
-    T* allocate();
+    template<typename T, typename... Args>
+    T* allocate(Args&&... args) {
+        if (freeList == nullptr) {
+            return nullptr;
+        }
+        static_assert(sizeof(T) <= blockSize - sizeof(MemoryBlock), "Type T is too large for the memory block size");
+
+        // Find the next free block
+        MemoryBlock* block = freeList;
+        freeList = block->next;
+
+        // Make the payload
+        void* payload = reinterpret_cast<void*>(block + 1);
+        T* obj = new (payload) T(std::forward<Args>(args)...);
+        
+        return obj;
+    }
 
     template<typename T>
-    void deallocate(T* block);
+    void deallocate(T* ptr) {
+        if (ptr == nullptr) return;
+
+        ptr->~T(); // Destroy the object
+
+        // Get the block header thta comes before the payload
+        MemoryBlock* block = reinterpret_cast<MemoryBlock*>(ptr) - 1;
+        void* payload = reinterpret_cast<void*>(block + 1);
+        
+
+        // Push the block back onto the freelist
+        block->next = freeList;
+        freeList = block;
+    }
 };
 
 template<typename T>
