@@ -62,9 +62,9 @@ template<typename T>
 class PoolPointer {
 private:
     T* ptr;
-    MemoryPool* pool;
+    MemoryPool* owner;
 public:
-    PoolPointer(T* p, MemoryPool* pool) : ptr(p), pool(pool) {}
+    PoolPointer(T* p, MemoryPool* pool) : ptr(p), owner(pool) {}
     ~PoolPointer() { pool->deallocate(ptr); }
 };
 
