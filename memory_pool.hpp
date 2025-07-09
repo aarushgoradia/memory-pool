@@ -9,7 +9,9 @@ class MemoryPool {
 private:
 public:
     MemoryPool();
-    
+    ~MemoryPool();
+    void allocate();
+    void deallocate();
 };
 
 

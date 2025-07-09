@@ -3,3 +3,7 @@
 //
 
 #include "memory_pool.hpp"
+
+MemoryPool::MemoryPool() {
+
+}
