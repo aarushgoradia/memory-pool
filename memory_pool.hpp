@@ -1,17 +1,17 @@
-//
-// Created by Aarush Goradia on 9/7/25.
-//
-
-#include <cstddef>
-
 #ifndef MEMORYPOOLALLOCATOR_MEMORY_POOL_HPP
 #define MEMORYPOOLALLOCATOR_MEMORY_POOL_HPP
 
+#include <cstddef>
+
+
+// Metadata header for each memory block in the pool
 struct MemoryBlock {
     MemoryBlock* next;
 };
 
-
+/* A fixed - size memory pool that allows for allocation and deallocation
+of objects without using the system heap. Memory is pre-allocated up-front
+and then managed via a freelist */ 
 class MemoryPool {
 private:
     MemoryBlock* freeList;
@@ -19,10 +19,15 @@ private:
     size_t blockSize;
     size_t poolSize;
 public:
+    /* Constructor: Allocates a pool with a fixed number of blocks.
+    Each block must be large enough to store MemoryBlock + object payload. */
     MemoryPool(size_t blockSize, size_t numBlocks);
 
+    // Destructor: releases raw memory buffer
     ~MemoryPool();
 
+    /* Allocates and constructs an objet of type T with given arguments.
+    Returns a pointer to the constructed object or nullptr if pool is full */
     template<typename T, typename... Args>
     T* allocate(Args&&... args) {
         if (freeList == nullptr) {
@@ -34,22 +39,22 @@ public:
         MemoryBlock* block = freeList;
         freeList = block->next;
 
-        // Make the payload
+        // Construct the object in the payload area using placement new
         void* payload = reinterpret_cast<void*>(block + 1);
         T* obj = new (payload) T(std::forward<Args>(args)...);
         
         return obj;
     }
 
+    /* Manually destroy the object and return to the memory pool */
     template<typename T>
     void deallocate(T* ptr) {
         if (ptr == nullptr) return;
 
         ptr->~T(); // Destroy the object
 
-        // Get the block header thta comes before the payload
+        // Recover the MemoryBlock header by backing up one block
         MemoryBlock* block = reinterpret_cast<MemoryBlock*>(ptr) - 1;
-        void* payload = reinterpret_cast<void*>(block + 1);
         
 
         // Push the block back onto the freelist
@@ -58,6 +63,8 @@ public:
     }
 };
 
+/* A smart RAII wrapper for objects allocated from a MemoryPool
+Automatically deacllocates the object when it goes out of scope. */
 template<typename T>
 class PoolPointer {
 private:
@@ -65,7 +72,11 @@ private:
     MemoryPool* owner;
 public:
     PoolPointer(T* p, MemoryPool* pool) : ptr(p), owner(pool) {}
-    ~PoolPointer() { pool->deallocate(ptr); }
+    ~PoolPointer() { owner->deallocate(ptr); }
+
+    // Disable copying to prevent double free errors
+    PoolPointer(const PoolPointer&) = delete;
+    PoolPointer& operator=(const PoolPointer&) = delete;
 };
 
 #endif //MEMORYPOOLALLOCATOR_MEMORY_POOL_HPP
